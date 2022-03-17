@@ -1,0 +1,10 @@
+drop table if exists Returns;
+
+create table Returns (
+	 Returned varchar(3) not NULL
+	,Order_ID  varchar(15) not NULL );
+	
+COPY Returns(Returned, Order_ID)
+FROM 'D:\data_engineer\Sample - Superstore_Returns.csv'
+DELIMITER ';'
+CSV HEADER;
