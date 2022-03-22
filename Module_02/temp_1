@@ -1,0 +1,18 @@
+ drop table test;
+CREATE TABLE test (
+-- This is the calendar table
+  "Date" date NOT NULL,
+  "Year" int NOT NULL,
+  quarter int not null,
+  "Month" int NOT NULL,
+  "Day" int NOT NULL,			
+  PRIMARY KEY ("Date")
+);   
+
+insert into test 
+select 
+	order_date as "date", EXTRACT(year FROM order_date) as "year", EXTRACT(quarter FROM order_date) as "quarter",
+	EXTRACT(MONTH FROM order_date) as "month", EXTRACT(isodow FROM order_date) as "day"
+from (select distinct order_date from orders) as d_1 ;
+
+

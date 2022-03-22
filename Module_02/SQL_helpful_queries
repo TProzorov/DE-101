@@ -1,0 +1,22 @@
+-- we create new schema and make a path
+create schema calendar;
+set search_path=calendar;
+
+-- clean table (delete all data)
+truncate table dim_calendar;
+
+-- INSERT unique value + generate ID
+-- we get unique value from SHIP_MODE (columns) from ORDERS (table)
+insert into dim_shipping
+select 100+row_number() over(), ship_mode from (select distinct ship_mode from orders) as A1;
+
+-- create calendar 
+insert into dim_calendar 
+select 
+	date::date,
+	EXTRACT(year FROM date) as "year",
+	EXTRACT(quarter FROM date) as "quarter",
+	EXTRACT(MONTH FROM date) as "month",
+	to_char(date, 'dy') as week_day
+from generate_series(date '2000-01-01', date '2030-01-01', interval '1 day') as "date";
+

@@ -1,0 +1,158 @@
+-- ************************************** dim_calendar
+drop table if exists dim_calendar cascade;
+CREATE TABLE dim_calendar
+(
+ "date"     date NOT NULL,
+ "year"     int NOT NULL,
+ quarter  int NOT NULL,
+ "month"    varchar(50) NOT NULL,
+ week_day varchar(50) NOT NULL,
+ CONSTRAINT PK_9 PRIMARY KEY ( "date" ));
+
+insert into dim_calendar 
+select 
+	date::date,
+	EXTRACT(year FROM date) as "year",
+	EXTRACT(quarter FROM date) as "quarter",
+	EXTRACT(MONTH FROM date) as "month",
+	to_char(date, 'dy') as week_day
+from generate_series(date '2000-01-01', date '2030-01-01', interval '1 day') as "date";
+
+select * from dim_calendar;
+
+-- ************************************** dim_geo
+drop table if exists dim_geo cascade;
+CREATE TABLE dim_geo
+(
+ geo_id      int NOT NULL,
+ city        varchar(50) NOT NULL,
+ "state"       varchar(50) NOT NULL,
+ postal_code int NOT NULL,
+ region      varchar(50) NOT NULL,
+ country     varchar(50) NOT NULL,
+ CONSTRAINT PK_50 PRIMARY KEY ( geo_id )
+);
+
+--  update )
+update orders
+set postal_code = '05401'
+where city = 'Burlington' and postal_code is null;
+
+insert into dim_geo
+select 100+row_number() over(), city, "state", postal_code, region, country
+from (select distinct city, "state", postal_code, region, country from orders ) as geo_1;
+
+
+-- ************************************** dim_customer
+drop table if exists dim_customer cascade;
+CREATE TABLE dim_customer
+(
+ customer_id   varchar(50) NOT NULL,
+ customer_name varchar(50) NOT NULL,
+ segment       varchar(50) NOT NULL,
+ CONSTRAINT PK_42 PRIMARY KEY ( customer_id )
+);
+insert into dim_customer
+select customer_id, customer_name, segment  from (select distinct customer_id, customer_name, segment from orders ) as cust_1;
+
+
+-- ************************************** dim_product
+drop table if exists dim_product cascade;
+truncate table dim_product;
+
+CREATE TABLE dim_product
+(
+ prod_id	int NOT NULL,
+ product_id   varchar(50) NOT NULL,
+ product_name varchar(200) NOT NULL,
+ category     varchar(50) NOT NULL,
+ sub_category varchar(50) NOT NULL,
+ CONSTRAINT PK_60 PRIMARY KEY ( prod_id )
+);
+
+insert into dim_product
+select 100+row_number() over () as prod_id, product_id, product_name, category, subcategory from (select distinct product_id, product_name, category, SubCategory from orders) as prod_1;
+
+select * from dim_product;
+
+
+-- ************************************** dim_shipping
+drop table if exists dim_shipping cascade;
+CREATE TABLE dim_shipping
+(
+ ship_id        int NOT NULL,
+ shipping_mode varchar(50) NOT NULL,
+ CONSTRAINT PK_36 PRIMARY KEY ( ship_id )
+);
+-- INSERT unique value + generate ID
+-- we get unique value from SHIP_MODE (columns) from ORDERS (table)
+insert into dim_shipping
+select 100+row_number() over(), ship_mode from (select distinct ship_mode from orders) as ship_1;
+
+select * from dim_shipping
+
+
+-- ************************************** Orders_fact
+drop table if exists Orders_fact cascade;
+CREATE TABLE Orders_fact
+(
+ Row_ID      int NOT NULL,
+ order_id    varchar(50) NOT NULL,
+ prod_id  	 int NOT NULL,
+ geo_id      int NOT NULL,
+ customer_id varchar(50) NOT NULL,
+ ship_id     int NOT NULL,
+ ship_date   date NOT NULL,
+ order_date  date NOT NULL,
+ sales       numeric NOT NULL,
+ quantity    int NOT NULL,
+ discount    numeric NOT NULL,
+ profit      numeric NOT NULL,
+ CONSTRAINT PK_5 PRIMARY KEY ( Row_ID ),
+ CONSTRAINT FK_21 FOREIGN KEY ( order_date ) REFERENCES dim_calendar ( "date" ),
+ CONSTRAINT FK_31 FOREIGN KEY ( ship_date ) REFERENCES dim_calendar ( "date" ),
+ CONSTRAINT FK_37 FOREIGN KEY ( ship_id ) REFERENCES dim_shipping ( ship_id ),
+ CONSTRAINT FK_45 FOREIGN KEY ( customer_id ) REFERENCES dim_customer ( customer_id ),
+ CONSTRAINT FK_55 FOREIGN KEY ( geo_id ) REFERENCES dim_geo ( geo_id ),
+ CONSTRAINT FK_64 FOREIGN KEY ( prod_id ) REFERENCES dim_product ( prod_id )
+);
+CREATE INDEX FK_23 ON Orders_fact
+( order_date);
+CREATE INDEX FK_33 ON Orders_fact
+( ship_date );
+CREATE INDEX FK_39 ON Orders_fact
+( ship_id);
+CREATE INDEX FK_47 ON Orders_fact
+( customer_id);
+CREATE INDEX FK_57 ON Orders_fact
+(  geo_id );
+CREATE INDEX FK_66 ON Orders_fact
+(  prod_id );
+
+select * from Orders_fact
+
+-- insert data in new table Orders_fact
+ insert into orders_fact
+ select
+	 100+row_number() over() as sales_id,
+	 order_id,
+	 prod_id,
+	 geo_id,
+	 o.customer_id,
+	 ship_id,
+	 ship_date,
+	 order_date,
+	 sales,
+	 quantity,
+	 discount,
+	 round(profit,4)
+ from orders as o
+inner join dim_geo as g on o.postal_code = g.postal_code
+inner join dim_customer cd on cd.customer_id=o.customer_id
+inner join dim_product p on o.product_name = p.product_name and o.subcategory=p.sub_category and o.category=p.category and o.product_id=p.product_id 
+inner join dim_shipping s on o.ship_mode = s.shipping_mode
+
+select * from orders_fact where profit=0 limit 100
+
+select count(profit) from orders_fact where profit=0 
+
