@@ -45,7 +45,7 @@ from (select distinct city, "state", postal_code, region, country from stg.order
 
 
 -- ************************************** dwh.dim_customer
-drop table if exists dwh.dim_customer;
+drop table if exists dwh.dim_customer cascade;
 CREATE TABLE dwh.dim_customer
 (
  customer_id   varchar(50) NOT NULL,
@@ -143,10 +143,19 @@ CREATE INDEX FK_66 ON dwh.dim_Orders_fact
 	 discount,
 	 round(profit,4)
  from stg.orders as o
-inner join dwh.dim_geo as g on o.postal_code = g.postal_code
-inner join dwh.dim_customer cd on cd.customer_id=o.customer_id
-inner join dwh.dim_product p on o.product_name = p.product_name and o.subcategory=p.sub_category and o.category=p.category and o.product_id=p.product_id 
 inner join dwh.dim_shipping s on o.ship_mode = s.shipping_mode
+inner join dwh.dim_geo as g on o.postal_code = g.postal_code and o.country=g.country and o.city=g.city and o.state=g.state
+inner join dwh.dim_customer cd on cd.customer_id=o.customer_id and cd.customer_name=o.customer_name
+inner join dwh.dim_product p on o.product_name = p.product_name and o.subcategory=p.sub_category and o.category=p.category 
+							and o.product_id=p.product_id and o.segment=p.segment
 
+
+select count(*) from dwh.dim_orders_fact o
+inner join dwh.dim_customer c on c.customer_id=o.customer_id
+inner join dwh.dim_geo g on g.geo_id=o.geo_id
+inner join dwh.dim_product p on p.prod_id=o.prod_id
+inner join dwh.dim_shipping s on s.ship_id=o.ship_id
+
+select count(*) from stg.orders
 
 
