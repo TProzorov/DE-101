@@ -5,6 +5,9 @@ set search_path=calendar;
 -- clean table (delete all data)
 truncate table dim_calendar;
 
+-- delleting foreign key
+ALTER TABLE dim_product DROP FOREIGN KEY fk_60
+
 -- INSERT unique value + generate ID
 -- we get unique value from SHIP_MODE (columns) from ORDERS (table)
 insert into dim_shipping

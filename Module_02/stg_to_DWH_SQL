@@ -1,6 +1,8 @@
--- ************************************** dim_calendar
-drop table if exists dim_calendar cascade;
-CREATE TABLE dim_calendar
+create schema dwh;
+
+-- ************************************** dwh.dim_calendar
+drop table if exists dwh.dim_calendar cascade;
+CREATE TABLE dwh.dim_calendar
 (
  "date"     date NOT NULL,
  "year"     int NOT NULL,
@@ -9,7 +11,7 @@ CREATE TABLE dim_calendar
  week_day varchar(50) NOT NULL,
  CONSTRAINT PK_9 PRIMARY KEY ( "date" ));
 
-insert into dim_calendar 
+insert into dwh.dim_calendar 
 select 
 	date::date,
 	EXTRACT(year FROM date) as "year",
@@ -18,67 +20,64 @@ select
 	to_char(date, 'dy') as week_day
 from generate_series(date '2000-01-01', date '2030-01-01', interval '1 day') as "date";
 
-select * from dim_calendar;
 
--- ************************************** dim_geo
-drop table if exists dim_geo cascade;
-CREATE TABLE dim_geo
+-- ************************************** dwh.dim_geo
+drop table if exists dwh.dim_geo cascade;
+CREATE TABLE dwh.dim_geo
 (
  geo_id      int NOT NULL,
  city        varchar(50) NOT NULL,
  "state"       varchar(50) NOT NULL,
- postal_code int NOT NULL,
+ postal_code varchar(50) NOT NULL,
  region      varchar(50) NOT NULL,
  country     varchar(50) NOT NULL,
  CONSTRAINT PK_50 PRIMARY KEY ( geo_id )
 );
 
---  update )
-update orders
+-- then we test query "CREATE TABLE dwh.dim_customer", we found missed value. should update )
+update stg.orders
 set postal_code = '05401'
 where city = 'Burlington' and postal_code is null;
 
-insert into dim_geo
+insert into dwh.dim_geo
 select 100+row_number() over(), city, "state", postal_code, region, country
-from (select distinct city, "state", postal_code, region, country from orders ) as geo_1;
+from (select distinct city, "state", postal_code, region, country from stg.orders ) as geo_1;
 
 
--- ************************************** dim_customer
-drop table if exists dim_customer cascade;
-CREATE TABLE dim_customer
+-- ************************************** dwh.dim_customer
+drop table if exists dwh.dim_customer;
+CREATE TABLE dwh.dim_customer
 (
  customer_id   varchar(50) NOT NULL,
  customer_name varchar(50) NOT NULL,
- segment       varchar(50) NOT NULL,
  CONSTRAINT PK_42 PRIMARY KEY ( customer_id )
 );
-insert into dim_customer
-select customer_id, customer_name, segment  from (select distinct customer_id, customer_name, segment from orders ) as cust_1;
+insert into dwh.dim_customer
+select customer_id, customer_name  from (select distinct customer_id, customer_name from stg.orders ) as cust_1;
 
 
--- ************************************** dim_product
-drop table if exists dim_product cascade;
-truncate table dim_product;
+-- ************************************** dwh.dim_product
+drop table if exists dwh.dim_product cascade;
 
-CREATE TABLE dim_product
+CREATE TABLE dwh.dim_product
 (
  prod_id	int NOT NULL,
  product_id   varchar(50) NOT NULL,
  product_name varchar(200) NOT NULL,
  category     varchar(50) NOT NULL,
  sub_category varchar(50) NOT NULL,
+ segment       varchar(50) NOT NULL,
  CONSTRAINT PK_60 PRIMARY KEY ( prod_id )
 );
 
-insert into dim_product
-select 100+row_number() over () as prod_id, product_id, product_name, category, subcategory from (select distinct product_id, product_name, category, SubCategory from orders) as prod_1;
+insert into dwh.dim_product
+select 100+row_number() over () as prod_id, product_id, product_name, category, subcategory, segment 
+from (select distinct product_id, product_name, category, SubCategory, segment from stg.orders) as prod_1;
 
-select * from dim_product;
 
-
--- ************************************** dim_shipping
-drop table if exists dim_shipping cascade;
-CREATE TABLE dim_shipping
+-- ************************************** dwh.dim_shipping
+drop table if exists dwh.dim_shipping cascade;
+CREATE TABLE dwh.dim_shipping
 (
  ship_id        int NOT NULL,
  shipping_mode varchar(50) NOT NULL,
@@ -86,15 +85,14 @@ CREATE TABLE dim_shipping
 );
 -- INSERT unique value + generate ID
 -- we get unique value from SHIP_MODE (columns) from ORDERS (table)
-insert into dim_shipping
-select 100+row_number() over(), ship_mode from (select distinct ship_mode from orders) as ship_1;
-
-select * from dim_shipping
+insert into dwh.dim_shipping
+select 100+row_number() over(), ship_mode from (select distinct ship_mode from stg.orders) as ship_1;
 
 
--- ************************************** Orders_fact
-drop table if exists Orders_fact cascade;
-CREATE TABLE Orders_fact
+
+-- ************************************** dwh.Orders_fact
+drop table if exists dwh.dim_Orders_fact cascade;
+CREATE TABLE dwh.dim_Orders_fact
 (
  Row_ID      int NOT NULL,
  order_id    varchar(50) NOT NULL,
@@ -109,30 +107,28 @@ CREATE TABLE Orders_fact
  discount    numeric NOT NULL,
  profit      numeric NOT NULL,
  CONSTRAINT PK_5 PRIMARY KEY ( Row_ID ),
- CONSTRAINT FK_21 FOREIGN KEY ( order_date ) REFERENCES dim_calendar ( "date" ),
- CONSTRAINT FK_31 FOREIGN KEY ( ship_date ) REFERENCES dim_calendar ( "date" ),
- CONSTRAINT FK_37 FOREIGN KEY ( ship_id ) REFERENCES dim_shipping ( ship_id ),
- CONSTRAINT FK_45 FOREIGN KEY ( customer_id ) REFERENCES dim_customer ( customer_id ),
- CONSTRAINT FK_55 FOREIGN KEY ( geo_id ) REFERENCES dim_geo ( geo_id ),
- CONSTRAINT FK_64 FOREIGN KEY ( prod_id ) REFERENCES dim_product ( prod_id )
+ CONSTRAINT FK_21 FOREIGN KEY ( order_date ) REFERENCES dwh.dim_calendar ( "date" ),
+ CONSTRAINT FK_31 FOREIGN KEY ( ship_date ) REFERENCES dwh.dim_calendar ( "date" ),
+ CONSTRAINT FK_37 FOREIGN KEY ( ship_id ) REFERENCES dwh.dim_shipping ( ship_id ),
+ CONSTRAINT FK_45 FOREIGN KEY ( customer_id ) REFERENCES dwh.dim_customer ( customer_id ),
+ CONSTRAINT FK_55 FOREIGN KEY ( geo_id ) REFERENCES dwh.dim_geo ( geo_id ),
+ CONSTRAINT FK_64 FOREIGN KEY ( prod_id ) REFERENCES dwh.dim_product ( prod_id )
 );
-CREATE INDEX FK_23 ON Orders_fact
+CREATE INDEX FK_23 ON dwh.dim_Orders_fact
 ( order_date);
-CREATE INDEX FK_33 ON Orders_fact
+CREATE INDEX FK_33 ON dwh.dim_Orders_fact
 ( ship_date );
-CREATE INDEX FK_39 ON Orders_fact
+CREATE INDEX FK_39 ON dwh.dim_Orders_fact
 ( ship_id);
-CREATE INDEX FK_47 ON Orders_fact
+CREATE INDEX FK_47 ON dwh.dim_Orders_fact
 ( customer_id);
-CREATE INDEX FK_57 ON Orders_fact
+CREATE INDEX FK_57 ON dwh.dim_Orders_fact
 (  geo_id );
-CREATE INDEX FK_66 ON Orders_fact
+CREATE INDEX FK_66 ON dwh.dim_Orders_fact
 (  prod_id );
 
-select * from Orders_fact
-
 -- insert data in new table Orders_fact
- insert into orders_fact
+ insert into dwh.dim_orders_fact
  select
 	 100+row_number() over() as sales_id,
 	 order_id,
@@ -146,13 +142,11 @@ select * from Orders_fact
 	 quantity,
 	 discount,
 	 round(profit,4)
- from orders as o
-inner join dim_geo as g on o.postal_code = g.postal_code
-inner join dim_customer cd on cd.customer_id=o.customer_id
-inner join dim_product p on o.product_name = p.product_name and o.subcategory=p.sub_category and o.category=p.category and o.product_id=p.product_id 
-inner join dim_shipping s on o.ship_mode = s.shipping_mode
+ from stg.orders as o
+inner join dwh.dim_geo as g on o.postal_code = g.postal_code
+inner join dwh.dim_customer cd on cd.customer_id=o.customer_id
+inner join dwh.dim_product p on o.product_name = p.product_name and o.subcategory=p.sub_category and o.category=p.category and o.product_id=p.product_id 
+inner join dwh.dim_shipping s on o.ship_mode = s.shipping_mode
 
-select * from orders_fact where profit=0 limit 100
 
-select count(profit) from orders_fact where profit=0 
 
