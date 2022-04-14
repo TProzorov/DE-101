@@ -5,7 +5,7 @@ DE-101 for DataLearn.ru (and for me - mainly for me :) )
 ### Module_01.
 Excel formuls and dashboards lesson.  
 [Link to Course Module_01](https://github.com/Data-Learn/data-engineering/blob/master/DE-101%20Modules/Module01/DE%20-%20101%20Module01.md).  
-[HomeWork_folder](https://github.com/TProzorov/DE-101/tree/main/Module_02).  
+[HomeWork_folder](https://github.com/TProzorov/DE-101/tree/main/Module_01).  
 Not halpful, just [map dashbord](https://github.com/TProzorov/DE-101/blob/main/Module_01/Sample%20-%20Superstore.xlsx), maybe.
 
 ### Module_02. 
