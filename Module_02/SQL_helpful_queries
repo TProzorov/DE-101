@@ -23,3 +23,12 @@ select
 	to_char(date, 'dy') as week_day
 from generate_series(date '2000-01-01', date '2030-01-01', interval '1 day') as "date";
 
+
+-- Используя схожий подход, можно генерировать не только последовательности дат, но и различные другие последовательности, как числовые, так и строковые.
+-- Пример, генерирующий даты с 01.12.2008 по 31.12.2008:
+
+create view v_last_month_of_2008 as
+select 
+	to_date('01.12.2008','DD.MM.YYYY') + level -1 dt
+from dual
+connect by to_date('01.12.2008','DD.MM.YYYY') + level -1 <= to_date('31.12.2008','DD.MM.YYYY')
